@@ -18,14 +18,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           registry-url: https://registry.npmjs.org/
-          node-version: 22
+          node-version: 20
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libturbojpeg0-dev pkg-config
 
       # Install dependencies so that prepublish scripts work as expected
       - name: Install deps
         run: npm ci
-
-      - name: Generate base client for types
-        run: npm run generate
 
       - name: Build package
         run: npm run build
@@ -37,9 +39,9 @@ jobs:
       # install it and ensure that it can be "required"
       - name: Ensure pack file can be installed
         run: |
-          export PACK_FILENAME=$(npm pack --json | jq -r '.[] | .filename')
+          export PACK_FILENAME=$(npm pack --ignore-scripts --json | jq -r '.[] | .filename')
           mv $PACK_FILENAME ../test-install/
           mv test/npm-pack.js ../test-install/
           cd ../test-install
-          npm install $PACK_FILENAME
+          npm install ./$PACK_FILENAME
           node npm-pack.js

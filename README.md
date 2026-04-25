@@ -12,7 +12,7 @@ brew install jpeg-turbo
 
 ```sh
 sudo apt-get update
-sudo apt-get install libjpeg-turbo8-dev pkg-config
+sudo apt-get install libturbojpeg0-dev pkg-config
 ```
 
 The build expects `pkg-config --cflags --libs libturbojpeg` to resolve the TurboJPEG headers and library.
