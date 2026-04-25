@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.0.0...v1.0.1) (2026-04-25)
+
+
+### Bug Fixes
+
+* add native dependency preflight check ([16bf041](https://github.com/cerebruminc/i420-jpeg-encoder/commit/16bf04154ae067e63144d35ccca3a4d2bf608083))
+
 ## 1.0.0 (2026-04-25)
 
 

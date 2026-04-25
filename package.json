@@ -1,6 +1,6 @@
 {
   "name": "@cerebruminc/i420-jpeg-encoder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Node.js native I420 to JPEG encoder backed by libjpeg-turbo.",
   "main": "dist/index.js",
   "types": "index.d.ts",
