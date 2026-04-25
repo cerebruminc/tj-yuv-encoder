@@ -17,6 +17,12 @@ sudo apt-get install libturbojpeg0-dev pkg-config
 
 The build expects `pkg-config --cflags --libs libturbojpeg` to resolve the TurboJPEG headers and library.
 
+To verify local native prerequisites before building:
+
+```sh
+npm run check:native-deps
+```
+
 ## Install
 
 ```sh

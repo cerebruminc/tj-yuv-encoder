@@ -13,10 +13,11 @@
   },
   "scripts": {
     "build": "npm run build:native && npm run build:ts",
-    "build:native": "node-gyp rebuild",
+    "build:native": "npm run check:native-deps && node-gyp rebuild",
     "build:ts": "tsc -p tsconfig.json",
+    "check:native-deps": "node scripts/check-native-deps.js",
     "clean": "node-gyp clean && rm -rf dist",
-    "install": "node-gyp rebuild",
+    "install": "node scripts/check-native-deps.js && node-gyp rebuild",
     "prepack": "npm run build",
     "prepare": "npm run build:ts",
     "pretest": "npm run build",
@@ -40,6 +41,7 @@
     "binding.gyp",
     "dist",
     "index.d.ts",
+    "scripts",
     "src",
     "README.md",
     "LICENSE"
