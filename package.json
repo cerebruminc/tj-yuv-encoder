@@ -1,0 +1,65 @@
+{
+  "name": "@cerebruminc/tj-yuv-encoder",
+  "version": "0.1.0",
+  "description": "Node.js native I420 to JPEG encoder backed by libjpeg-turbo.",
+  "main": "dist/index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "npm run build:native && npm run build:ts",
+    "build:native": "node-gyp rebuild",
+    "build:ts": "tsc -p tsconfig.json",
+    "clean": "node-gyp clean && rm -rf dist",
+    "install": "node-gyp rebuild",
+    "prepack": "npm run build",
+    "prepare": "npm run build:ts",
+    "pretest": "npm run build",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cerebruminc/tj-yuv-encoder.git"
+  },
+  "keywords": [
+    "jpeg",
+    "turbojpeg",
+    "i420",
+    "yuv420",
+    "napi"
+  ],
+  "author": "Cerebrum LLC",
+  "license": "GPL-3.0-only",
+  "type": "commonjs",
+  "files": [
+    "binding.gyp",
+    "dist",
+    "index.d.ts",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": "^20.0.0"
+  },
+  "gypfile": true,
+  "bugs": {
+    "url": "https://github.com/cerebruminc/tj-yuv-encoder/issues"
+  },
+  "homepage": "https://github.com/cerebruminc/tj-yuv-encoder#readme",
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "jest": "^30.3.0",
+    "jpeg-js": "^0.4.4",
+    "node-gyp": "^12.3.0",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.7.0"
+  }
+}
