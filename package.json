@@ -1,6 +1,6 @@
 {
   "name": "@cerebruminc/tj-yuv-encoder",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Node.js native I420 to JPEG encoder backed by libjpeg-turbo.",
   "main": "dist/index.js",
   "types": "index.d.ts",
