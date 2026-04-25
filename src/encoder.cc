@@ -136,4 +136,4 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-NODE_API_MODULE(tj_yuv_encoder, Init)
+NODE_API_MODULE(i420_jpeg_encoder, Init)

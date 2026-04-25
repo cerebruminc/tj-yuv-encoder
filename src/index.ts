@@ -9,7 +9,7 @@ interface NativeBinding {
   ): Buffer;
 }
 
-const bindingPath = join(__dirname, "..", "build", "Release", "tj_yuv_encoder.node");
+const bindingPath = join(__dirname, "..", "build", "Release", "i420_jpeg_encoder.node");
 const nativeBinding = require(bindingPath) as Partial<NativeBinding>;
 
 if (typeof nativeBinding.encodeI420ToJpeg !== "function") {

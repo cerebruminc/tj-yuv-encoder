@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "tj_yuv_encoder",
+      "target_name": "i420_jpeg_encoder",
       "sources": [ "src/encoder.cc" ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")"

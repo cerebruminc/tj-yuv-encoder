@@ -1,4 +1,4 @@
-# @cerebruminc/tj-yuv-encoder
+# @cerebruminc/i420-jpeg-encoder
 
 Synchronous Node.js native encoder for converting planar `I420`/YUV420 frames directly to JPEG using `libjpeg-turbo`.
 
@@ -20,7 +20,7 @@ The build expects `pkg-config --cflags --libs libturbojpeg` to resolve the Turbo
 ## Install
 
 ```sh
-npm install @cerebruminc/tj-yuv-encoder
+npm install @cerebruminc/i420-jpeg-encoder
 ```
 
 This package targets Node.js `^20.0.0` and uses N-API through `node-addon-api`.
@@ -28,7 +28,7 @@ This package targets Node.js `^20.0.0` and uses N-API through `node-addon-api`.
 ## Usage
 
 ```ts
-import { encodeI420ToJpeg } from "@cerebruminc/tj-yuv-encoder";
+import { encodeI420ToJpeg } from "@cerebruminc/i420-jpeg-encoder";
 
 const width = 1280;
 const height = 720;

@@ -1,5 +1,5 @@
 {
-  "name": "@cerebruminc/tj-yuv-encoder",
+  "name": "@cerebruminc/i420-jpeg-encoder",
   "version": "1.0.0",
   "description": "Node.js native I420 to JPEG encoder backed by libjpeg-turbo.",
   "main": "dist/index.js",
@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cerebruminc/tj-yuv-encoder.git"
+    "url": "git+https://github.com/cerebruminc/i420-jpeg-encoder.git"
   },
   "keywords": [
     "jpeg",
@@ -49,9 +49,9 @@
   },
   "gypfile": true,
   "bugs": {
-    "url": "https://github.com/cerebruminc/tj-yuv-encoder/issues"
+    "url": "https://github.com/cerebruminc/i420-jpeg-encoder/issues"
   },
-  "homepage": "https://github.com/cerebruminc/tj-yuv-encoder#readme",
+  "homepage": "https://github.com/cerebruminc/i420-jpeg-encoder#readme",
   "devDependencies": {
     "@types/node": "^20.19.39",
     "jest": "^30.3.0",

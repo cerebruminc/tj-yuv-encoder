@@ -1,4 +1,4 @@
-const { encodeI420ToJpeg } = require("@cerebruminc/tj-yuv-encoder");
+const { encodeI420ToJpeg } = require("@cerebruminc/i420-jpeg-encoder");
 
 const width = 16;
 const height = 16;
