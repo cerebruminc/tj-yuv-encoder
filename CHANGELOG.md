@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.0.1...v1.1.0) (2026-04-26)
+
+
+### Features
+
+* add support for Node.js 22 and 24 in CI workflows and project engines ([2301dfc](https://github.com/cerebruminc/i420-jpeg-encoder/commit/2301dfcf2c65e15a37d001ecf82aef7894878919))
+
 ## [1.0.1](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.0.0...v1.0.1) (2026-04-25)
 
 
