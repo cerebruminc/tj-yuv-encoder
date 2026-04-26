@@ -23,7 +23,7 @@ Unable to find libturbojpeg with pkg-config.
 Install native prerequisites before building @cerebruminc/i420-jpeg-encoder:
 
   macOS:
-    brew install jpeg-turbo
+    brew install jpeg-turbo pkg-config
 
   Debian/Ubuntu:
     sudo apt-get update
