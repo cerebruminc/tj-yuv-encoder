@@ -6,6 +6,10 @@ on:
 jobs:
   npm-pack-check:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
     # Only run this job if the PR is from a trusted collaborator (i.e. not a fork)
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
@@ -18,7 +22,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           registry-url: https://registry.npmjs.org/
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
 
       - name: Install native dependencies
         run: |

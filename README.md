@@ -29,7 +29,7 @@ npm run check:native-deps
 npm install @cerebruminc/i420-jpeg-encoder
 ```
 
-This package targets Node.js `^20.0.0` and uses N-API through `node-addon-api`.
+This package targets Node.js `^20.0.0 || ^22.0.0 || ^24.0.0` and uses N-API through `node-addon-api`.
 
 ## Usage
 
