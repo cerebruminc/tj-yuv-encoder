@@ -5,6 +5,7 @@ export declare function encodeI420ToJpeg(
   width: number,
   height: number,
   quality: number,
+  padOddDimensions?: boolean,
 ): Buffer;
 
 export default encodeI420ToJpeg;
