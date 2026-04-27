@@ -48,11 +48,11 @@ const jpegBuffer = encodeI420ToJpeg(i420Buffer, width, height, quality);
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
-| `i420Buffer` | `Buffer` | ✓ | Packed planar I420 data |
+| `i420Buffer` | `Buffer` | ✓ | Planar I420 data, either tightly packed or row-strided |
 | `width` | `number` | ✓ | Frame width in pixels (positive integer) |
 | `height` | `number` | ✓ | Frame height in pixels (positive integer) |
 | `quality` | `number` | ✓ | JPEG quality from 1–100 |
-| `padOddDimensions` | `boolean` | – | Default `false`. When `true`, odd `width`/`height` are accepted and the encoder pads the luma plane with a replicated edge column/row to reach even dimensions before compressing. |
+| `options` | `boolean \| object` | – | A boolean keeps the old `padOddDimensions` behavior. An object may include `padOddDimensions`, `yStride`, `uStride`, `vStride`, `yOffset`, `uOffset`, and `vOffset`. If any of `yStride`, `uStride`, or `vStride` is provided, all three must be provided together; otherwise omit all three. |
 
 ### Dimension requirements
 
@@ -62,7 +62,21 @@ const jpegBuffer = encodeI420ToJpeg(i420Buffer, width, height, quality);
 
 **Odd dimensions with `padOddDimensions = true`:** Any positive integer dimensions are accepted. The expected source buffer size uses `ceil` for the chroma planes: `width * height + 2 * ceil(width / 2) * ceil(height / 2)`. The encoder internally pads the luma plane by replicating the last column and/or row so that libjpeg-turbo receives an even-dimensioned frame. As a result, **the output JPEG dimensions are rounded up to the nearest even values** (e.g., a 15×17 source produces a 16×18 JPEG).
 
-`encodeI420ToJpeg` throws standard JavaScript errors when arguments are invalid, the I420 buffer size does not match the expected packed layout, or `libjpeg-turbo` reports a compression failure.
+### Strided buffers
+
+Tightly packed I420 does not need options. For row-strided I420 buffers, pass all three plane strides:
+
+```ts
+const jpegBuffer = encodeI420ToJpeg(i420Buffer, width, height, quality, {
+  yStride,
+  uStride,
+  vStride,
+});
+```
+
+By default, strided planes are assumed to be contiguous inside `i420Buffer`: Y starts at offset `0`, U starts at `yStride * height`, and V starts at `uOffset + uStride * ceil(height / 2)`. If the contiguous I420 image starts later in the buffer, you can pass `yOffset` only and the U/V plane offsets will be inferred from that starting point using the supplied strides and dimensions. Pass `uOffset` and `vOffset` as well when the chroma planes are not laid out contiguously after Y, for example if U and V are stored at independent locations in the buffer.
+
+`encodeI420ToJpeg` throws standard JavaScript errors when arguments are invalid, the I420 buffer size does not match the expected layout, or `libjpeg-turbo` reports a compression failure.
 
 ## Development
 

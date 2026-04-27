@@ -42,6 +42,131 @@ Napi::Value ThrowRangeError(Napi::Env env, const std::string& message) {
     return Napi::Value();
 }
 
+bool ReadNonNegativeSize(const Napi::Value& value, size_t* output) {
+    if (!IsIntegralNumber(value)) {
+        return false;
+    }
+
+    double number = value.As<Napi::Number>().DoubleValue();
+    if (number < 0 || number > static_cast<double>(std::numeric_limits<size_t>::max())) {
+        return false;
+    }
+
+    *output = static_cast<size_t>(number);
+    return true;
+}
+
+bool ReadOptionalBooleanOption(
+    Napi::Env env,
+    const Napi::Object& options,
+    const char* name,
+    bool* output) {
+    Napi::Value value = options.Get(name);
+    if (value.IsUndefined()) {
+        return true;
+    }
+
+    if (!value.IsBoolean()) {
+        ThrowTypeError(env, std::string(name) + " must be a boolean");
+        return false;
+    }
+
+    *output = value.As<Napi::Boolean>().Value();
+    return true;
+}
+
+bool ReadOptionalPositiveIntOption(
+    Napi::Env env,
+    const Napi::Object& options,
+    const char* name,
+    int* output,
+    bool* present) {
+    Napi::Value value = options.Get(name);
+    if (value.IsUndefined()) {
+        *present = false;
+        return true;
+    }
+
+    *present = true;
+    if (!ReadPositiveInt(value, output)) {
+        ThrowRangeError(env, std::string(name) + " must be a positive integer");
+        return false;
+    }
+
+    return true;
+}
+
+bool ReadOptionalSizeOption(
+    Napi::Env env,
+    const Napi::Object& options,
+    const char* name,
+    size_t* output,
+    bool* present) {
+    Napi::Value value = options.Get(name);
+    if (value.IsUndefined()) {
+        *present = false;
+        return true;
+    }
+
+    *present = true;
+    if (!ReadNonNegativeSize(value, output)) {
+        ThrowRangeError(env, std::string(name) + " must be a non-negative integer");
+        return false;
+    }
+
+    return true;
+}
+
+bool CheckedMul(size_t left, size_t right, size_t* output) {
+    if (left != 0 && right > std::numeric_limits<size_t>::max() / left) {
+        return false;
+    }
+
+    *output = left * right;
+    return true;
+}
+
+bool CheckedAdd(size_t left, size_t right, size_t* output) {
+    if (left > std::numeric_limits<size_t>::max() - right) {
+        return false;
+    }
+
+    *output = left + right;
+    return true;
+}
+
+bool PlaneEndOffset(
+    size_t offset,
+    size_t stride,
+    size_t planeWidth,
+    size_t planeHeight,
+    size_t* output) {
+    size_t rowOffset = 0;
+    if (!CheckedMul(planeHeight - 1, stride, &rowOffset)) {
+        return false;
+    }
+
+    size_t lastRowEnd = 0;
+    if (!CheckedAdd(rowOffset, planeWidth, &lastRowEnd)) {
+        return false;
+    }
+
+    return CheckedAdd(offset, lastRowEnd, output);
+}
+
+struct I420Layout {
+    bool padOddDimensions = false;
+    bool usesCustomLayout = false;
+    bool uOffsetProvided = false;
+    bool vOffsetProvided = false;
+    int yStride = 0;
+    int uStride = 0;
+    int vStride = 0;
+    size_t yOffset = 0;
+    size_t uOffset = 0;
+    size_t vOffset = 0;
+};
+
 }  // namespace
 
 Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
@@ -49,7 +174,11 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
 
     if (info.Length() < 4 || !info[0].IsBuffer() || !info[1].IsNumber() ||
         !info[2].IsNumber() || !info[3].IsNumber()) {
-        return ThrowTypeError(env, "Expected arguments: (i420Buffer, width, height, quality) or (i420Buffer, width, height, quality, padOddDimensions)");
+        return ThrowTypeError(
+            env,
+            "Expected arguments: (i420Buffer, width, height, quality), "
+            "(i420Buffer, width, height, quality, padOddDimensions), or "
+            "(i420Buffer, width, height, quality, options)");
     }
 
     Napi::Buffer<uint8_t> i420Buffer = info[0].As<Napi::Buffer<uint8_t>>();
@@ -65,18 +194,52 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
         return ThrowRangeError(env, "quality must be an integer between 1 and 100");
     }
 
-    bool padOddDimensions = false;
+    I420Layout layout;
     if (info.Length() >= 5) {
-        if (!info[4].IsBoolean()) {
-            return ThrowTypeError(env, "padOddDimensions must be a boolean");
+        if (info[4].IsBoolean()) {
+            layout.padOddDimensions = info[4].As<Napi::Boolean>().Value();
+        } else if (info[4].IsObject()) {
+            Napi::Object options = info[4].As<Napi::Object>();
+
+            if (!ReadOptionalBooleanOption(env, options, "padOddDimensions", &layout.padOddDimensions)) {
+                return Napi::Value();
+            }
+
+            bool hasYStride = false;
+            bool hasUStride = false;
+            bool hasVStride = false;
+            if (!ReadOptionalPositiveIntOption(env, options, "yStride", &layout.yStride, &hasYStride) ||
+                !ReadOptionalPositiveIntOption(env, options, "uStride", &layout.uStride, &hasUStride) ||
+                !ReadOptionalPositiveIntOption(env, options, "vStride", &layout.vStride, &hasVStride)) {
+                return Napi::Value();
+            }
+
+            bool hasAnyStride = hasYStride || hasUStride || hasVStride;
+            if (hasAnyStride && !(hasYStride && hasUStride && hasVStride)) {
+                return ThrowTypeError(env, "yStride, uStride, and vStride must be provided together");
+            }
+
+            bool hasYOffset = false;
+            bool hasUOffset = false;
+            bool hasVOffset = false;
+            if (!ReadOptionalSizeOption(env, options, "yOffset", &layout.yOffset, &hasYOffset) ||
+                !ReadOptionalSizeOption(env, options, "uOffset", &layout.uOffset, &hasUOffset) ||
+                !ReadOptionalSizeOption(env, options, "vOffset", &layout.vOffset, &hasVOffset)) {
+                return Napi::Value();
+            }
+
+            layout.uOffsetProvided = hasUOffset;
+            layout.vOffsetProvided = hasVOffset;
+            layout.usesCustomLayout = hasAnyStride || hasYOffset || hasUOffset || hasVOffset;
+        } else {
+            return ThrowTypeError(env, "options must be an object or padOddDimensions must be a boolean");
         }
-        padOddDimensions = info[4].As<Napi::Boolean>().Value();
     }
 
     bool widthIsOdd = (width % 2) != 0;
     bool heightIsOdd = (height % 2) != 0;
 
-    if ((widthIsOdd || heightIsOdd) && !padOddDimensions) {
+    if ((widthIsOdd || heightIsOdd) && !layout.padOddDimensions) {
         return ThrowRangeError(
             env,
             "width and height must be even integers for I420 (4:2:0); "
@@ -110,11 +273,64 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
     }
 
     size_t expectedSize = lumaPlaneSize + chromaTotalSize;
-    if (i420Buffer.Length() != expectedSize) {
+
+    if (layout.yStride == 0) {
+        layout.yStride = width;
+    }
+    if (layout.uStride == 0) {
+        layout.uStride = static_cast<int>(chromaWidth);
+    }
+    if (layout.vStride == 0) {
+        layout.vStride = static_cast<int>(chromaWidth);
+    }
+
+    if (static_cast<size_t>(layout.yStride) < widthSize ||
+        static_cast<size_t>(layout.uStride) < chromaWidth ||
+        static_cast<size_t>(layout.vStride) < chromaWidth) {
+        return ThrowRangeError(env, "I420 strides must be at least the corresponding plane widths");
+    }
+
+    size_t defaultUOffset = 0;
+    size_t defaultVOffset = 0;
+    size_t yPlaneAllocation = 0;
+    size_t uPlaneAllocation = 0;
+    if (!CheckedMul(static_cast<size_t>(layout.yStride), heightSize, &yPlaneAllocation) ||
+        !CheckedMul(static_cast<size_t>(layout.uStride), chromaHeight, &uPlaneAllocation) ||
+        !CheckedAdd(layout.yOffset, yPlaneAllocation, &defaultUOffset)) {
+        return ThrowRangeError(env, "I420 buffer size calculation overflowed");
+    }
+    if (!layout.uOffsetProvided) {
+        layout.uOffset = defaultUOffset;
+    }
+    if (!CheckedAdd(layout.uOffset, uPlaneAllocation, &defaultVOffset)) {
+        return ThrowRangeError(env, "I420 buffer size calculation overflowed");
+    }
+    if (!layout.vOffsetProvided) {
+        layout.vOffset = defaultVOffset;
+    }
+
+    size_t yEndOffset = 0;
+    size_t uEndOffset = 0;
+    size_t vEndOffset = 0;
+    if (!PlaneEndOffset(layout.yOffset, static_cast<size_t>(layout.yStride), widthSize, heightSize, &yEndOffset) ||
+        !PlaneEndOffset(layout.uOffset, static_cast<size_t>(layout.uStride), chromaWidth, chromaHeight, &uEndOffset) ||
+        !PlaneEndOffset(layout.vOffset, static_cast<size_t>(layout.vStride), chromaWidth, chromaHeight, &vEndOffset)) {
+        return ThrowRangeError(env, "I420 buffer size calculation overflowed");
+    }
+
+    size_t requiredSize = std::max(std::max(yEndOffset, uEndOffset), vEndOffset);
+    if (!layout.usesCustomLayout && i420Buffer.Length() != expectedSize) {
         return ThrowTypeError(
             env,
             "I420 buffer size mismatch: expected " + std::to_string(expectedSize) +
                 " bytes, received " + std::to_string(i420Buffer.Length()) + " bytes");
+    }
+    if (layout.usesCustomLayout && i420Buffer.Length() < requiredSize) {
+        return ThrowTypeError(
+            env,
+            "I420 buffer size mismatch for strided layout: expected at least " +
+                std::to_string(requiredSize) + " bytes, received " +
+                std::to_string(i420Buffer.Length()) + " bytes");
     }
 
     // When odd dimensions are present and padding is enabled, build an
@@ -122,11 +338,16 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
     // The Y plane is replicated at the right/bottom edge; the chroma planes
     // copy directly because ceil(w/2) == paddedW/2 and ceil(h/2) == paddedH/2.
     std::vector<uint8_t> paddedBuffer;
-    const uint8_t* yuvData = i420Buffer.Data();
+    const uint8_t* srcPlanes[3] = {
+        i420Buffer.Data() + layout.yOffset,
+        i420Buffer.Data() + layout.uOffset,
+        i420Buffer.Data() + layout.vOffset,
+    };
+    int strides[3] = { layout.yStride, layout.uStride, layout.vStride };
     int encodeWidth = width;
     int encodeHeight = height;
 
-    if (padOddDimensions && (widthIsOdd || heightIsOdd)) {
+    if (layout.padOddDimensions && (widthIsOdd || heightIsOdd)) {
         size_t paddedWidth = widthSize + (widthIsOdd ? 1u : 0u);
         size_t paddedHeight = heightSize + (heightIsOdd ? 1u : 0u);
 
@@ -137,12 +358,16 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
         if (paddedLumaSize > std::numeric_limits<size_t>::max() - chromaTotalSize) {
             return ThrowRangeError(env, "I420 padded buffer size calculation overflowed");
         }
+        if (paddedWidth > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+            paddedHeight > static_cast<size_t>(std::numeric_limits<int>::max())) {
+            return ThrowRangeError(env, "I420 padded dimensions exceed supported range");
+        }
 
         paddedBuffer.resize(paddedLumaSize + chromaTotalSize);
 
-        const uint8_t* srcY = i420Buffer.Data();
-        const uint8_t* srcU = srcY + lumaPlaneSize;
-        const uint8_t* srcV = srcU + chromaPlaneSize;
+        const uint8_t* srcY = srcPlanes[0];
+        const uint8_t* srcU = srcPlanes[1];
+        const uint8_t* srcV = srcPlanes[2];
 
         uint8_t* dstY = paddedBuffer.data();
         uint8_t* dstU = dstY + paddedLumaSize;
@@ -150,7 +375,7 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
 
         // Copy Y rows; replicate the last pixel rightward when width is odd.
         for (size_t row = 0; row < heightSize; ++row) {
-            const uint8_t* srcRow = srcY + row * widthSize;
+            const uint8_t* srcRow = srcY + row * static_cast<size_t>(layout.yStride);
             uint8_t* dstRow = dstY + row * paddedWidth;
             std::copy(srcRow, srcRow + widthSize, dstRow);
             if (widthIsOdd) {
@@ -168,10 +393,23 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
         // (widthSize + 1) / 2, which equals paddedWidth / 2 exactly (since
         // paddedWidth = widthSize + 1 when odd), and similarly for height.
         // The source and padded chroma plane sizes are therefore identical.
-        std::copy(srcU, srcU + chromaPlaneSize, dstU);
-        std::copy(srcV, srcV + chromaPlaneSize, dstV);
+        for (size_t row = 0; row < chromaHeight; ++row) {
+            std::copy(
+                srcU + row * static_cast<size_t>(layout.uStride),
+                srcU + row * static_cast<size_t>(layout.uStride) + chromaWidth,
+                dstU + row * chromaWidth);
+            std::copy(
+                srcV + row * static_cast<size_t>(layout.vStride),
+                srcV + row * static_cast<size_t>(layout.vStride) + chromaWidth,
+                dstV + row * chromaWidth);
+        }
 
-        yuvData = paddedBuffer.data();
+        srcPlanes[0] = dstY;
+        srcPlanes[1] = dstU;
+        srcPlanes[2] = dstV;
+        strides[0] = static_cast<int>(paddedWidth);
+        strides[1] = static_cast<int>(chromaWidth);
+        strides[2] = static_cast<int>(chromaWidth);
         encodeWidth = static_cast<int>(paddedWidth);
         encodeHeight = static_cast<int>(paddedHeight);
     }
@@ -185,11 +423,11 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
     unsigned char* jpegBuf = nullptr;
     unsigned long jpegSize = 0;
 
-    int result = tjCompressFromYUV(
+    int result = tjCompressFromYUVPlanes(
         jpegCompressor,
-        yuvData,
+        srcPlanes,
         encodeWidth,
-        1,
+        strides,
         encodeHeight,
         TJSAMP_420,
         &jpegBuf,
