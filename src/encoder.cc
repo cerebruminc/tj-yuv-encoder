@@ -34,12 +34,12 @@ bool ReadPositiveInt(const Napi::Value& value, int* output) {
 
 Napi::Value ThrowTypeError(Napi::Env env, const std::string& message) {
     Napi::TypeError::New(env, message).ThrowAsJavaScriptException();
-    return env.Null();
+    return Napi::Value();
 }
 
 Napi::Value ThrowRangeError(Napi::Env env, const std::string& message) {
     Napi::RangeError::New(env, message).ThrowAsJavaScriptException();
-    return env.Null();
+    return Napi::Value();
 }
 
 }  // namespace
@@ -179,7 +179,7 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
     tjhandle jpegCompressor = tjInitCompress();
     if (!jpegCompressor) {
         Napi::Error::New(env, tjGetErrorStr()).ThrowAsJavaScriptException();
-        return env.Null();
+        return Napi::Value();
     }
 
     unsigned char* jpegBuf = nullptr;
@@ -204,14 +204,14 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
         }
         tjDestroy(jpegCompressor);
         Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
-        return env.Null();
+        return Napi::Value();
     }
 
     tjDestroy(jpegCompressor);
 
     if (jpegBuf == nullptr || jpegSize == 0) {
         Napi::Error::New(env, "libjpeg-turbo returned an empty JPEG buffer").ThrowAsJavaScriptException();
-        return env.Null();
+        return Napi::Value();
     }
 
     Napi::Buffer<uint8_t> output = Napi::Buffer<uint8_t>::Copy(env, jpegBuf, jpegSize);
