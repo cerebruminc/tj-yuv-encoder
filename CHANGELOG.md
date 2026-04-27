@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.1.0...v1.1.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* support odd-sized I420 frames ([28a2d0d](https://github.com/cerebruminc/i420-jpeg-encoder/commit/28a2d0ddc71cd82887426d0adffdadf7e5b38172))
+
 ## [1.1.0](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.0.1...v1.1.0) (2026-04-26)
 
 
