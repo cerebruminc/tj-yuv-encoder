@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.1.1...v1.2.0) (2026-04-27)
+
+
+### Features
+
+* add padOddDimensions flag ([962242d](https://github.com/cerebruminc/i420-jpeg-encoder/commit/962242d12b0ff5b64cd63d5a9b4b6c85a3f32664))
+* add support for custom I420 buffer strides to encode function ([53fa539](https://github.com/cerebruminc/i420-jpeg-encoder/commit/53fa539e4b028c9d63618fb662930508f02cd193))
+
 ## [1.1.1](https://github.com/cerebruminc/i420-jpeg-encoder/compare/v1.1.0...v1.1.1) (2026-04-27)
 
 
