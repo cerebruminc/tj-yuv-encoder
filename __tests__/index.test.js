@@ -1,3 +1,4 @@
+const { spawnSync } = require("node:child_process");
 const jpegJs = require("jpeg-js");
 const { encodeI420ToJpeg } = require("../dist");
 
@@ -112,6 +113,37 @@ describe("encodeI420ToJpeg", () => {
   it("throws a handled JS exception for an undersized I420 buffer", () => {
     expect(() => encodeI420ToJpeg(Buffer.alloc(16 * 16), 16, 16, 85)).toThrow(
       /I420 buffer size mismatch/,
+    );
+  });
+
+  it("keeps native validation errors catchable instead of aborting the process", () => {
+    const script = `
+      const { encodeI420ToJpeg } = require("./dist");
+
+      try {
+        encodeI420ToJpeg(Buffer.alloc(1), 16, 16, 85);
+        console.error("expected encodeI420ToJpeg to throw");
+        process.exit(2);
+      } catch (error) {
+        if (!(error instanceof TypeError) || !/I420 buffer size mismatch/.test(error.message)) {
+          console.error(error && error.stack ? error.stack : String(error));
+          process.exit(3);
+        }
+
+        console.log("caught-native-validation-error");
+      }
+    `;
+
+    const result = spawnSync(process.execPath, ["-e", script], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+
+    expect(result.signal).toBeNull();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("caught-native-validation-error");
+    expect(result.stderr).not.toContain(
+      "terminate called after throwing an instance of 'Napi::Error'",
     );
   });
 
