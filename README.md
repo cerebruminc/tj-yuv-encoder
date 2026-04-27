@@ -44,7 +44,7 @@ const i420Buffer = Buffer.alloc((width * height * 3) / 2);
 const jpegBuffer = encodeI420ToJpeg(i420Buffer, width, height, quality);
 ```
 
-`width` and `height` must be positive even integers for `I420`/`TJSAMP_420` input. `encodeI420ToJpeg` throws standard JavaScript errors when arguments are invalid, the `I420` buffer size does not match `width * height * 1.5`, or `libjpeg-turbo` reports a compression failure.
+`width` and `height` must be positive integers for `I420`/`TJSAMP_420` input. For odd dimensions, the expected packed I420 buffer size is `width * height + 2 * ceil(width / 2) * ceil(height / 2)`. `encodeI420ToJpeg` throws standard JavaScript errors when arguments are invalid, the I420 buffer size does not match the expected packed layout, or `libjpeg-turbo` reports a compression failure.
 
 ## Development
 

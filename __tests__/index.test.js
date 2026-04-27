@@ -3,7 +3,7 @@ const { encodeI420ToJpeg } = require("../dist");
 
 function createI420Buffer(width, height) {
   const ySize = width * height;
-  const chromaSize = ySize / 4;
+  const chromaSize = Math.ceil(width / 2) * Math.ceil(height / 2);
   const buffer = Buffer.alloc(ySize + chromaSize * 2);
 
   buffer.fill(128, 0, ySize);
@@ -120,9 +120,24 @@ describe("encodeI420ToJpeg", () => {
       /width and height must be positive integers/,
     );
 
-    expect(() => encodeI420ToJpeg(Buffer.alloc(15 * 16 * 1.5), 15, 16, 85)).toThrow(
-      /width and height must be even/,
+    expect(() => encodeI420ToJpeg(createI420Buffer(16, 16), 15.5, 16, 85)).toThrow(
+      /width and height must be positive integers/,
     );
+  });
+
+  it("encodes odd-sized I420 frames with packed chroma planes", () => {
+    const width = 15;
+    const height = 17;
+    const expectedSize = width * height + 2 * Math.ceil(width / 2) * Math.ceil(height / 2);
+    const i420 = createI420Buffer(width, height);
+
+    expect(i420.length).toBe(expectedSize);
+
+    const jpeg = encodeI420ToJpeg(i420, width, height, 85);
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
+
+    expect(decoded.width).toBe(width);
+    expect(decoded.height).toBe(height);
   });
 
   it("throws a handled JS exception for invalid quality", () => {
