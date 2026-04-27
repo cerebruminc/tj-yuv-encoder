@@ -65,6 +65,37 @@ function createColorBarsI420(width, height) {
   return buffer;
 }
 
+function createStridedI420Buffer(packed, width, height, yStride, uStride, vStride, yOffset = 0) {
+  const chromaWidth = Math.ceil(width / 2);
+  const chromaHeight = Math.ceil(height / 2);
+  const ySize = width * height;
+  const chromaSize = chromaWidth * chromaHeight;
+  const uOffset = yOffset + yStride * height;
+  const vOffset = uOffset + uStride * chromaHeight;
+  const buffer = Buffer.alloc(vOffset + vStride * chromaHeight, 0xee);
+
+  for (let row = 0; row < height; row += 1) {
+    packed.copy(buffer, yOffset + row * yStride, row * width, row * width + width);
+  }
+
+  for (let row = 0; row < chromaHeight; row += 1) {
+    packed.copy(
+      buffer,
+      uOffset + row * uStride,
+      ySize + row * chromaWidth,
+      ySize + row * chromaWidth + chromaWidth,
+    );
+    packed.copy(
+      buffer,
+      vOffset + row * vStride,
+      ySize + chromaSize + row * chromaWidth,
+      ySize + chromaSize + row * chromaWidth + chromaWidth,
+    );
+  }
+
+  return { buffer, yOffset, uOffset, vOffset };
+}
+
 function sampleRgb(decoded, x, y) {
   const index = (y * decoded.width + x) * 4;
   return {
@@ -110,10 +141,134 @@ describe("encodeI420ToJpeg", () => {
     expect(yellowBar.green).toBeGreaterThan(yellowBar.blue + 40);
   });
 
+  it("encodes strided I420 frames with padded plane rows", () => {
+    const width = 32;
+    const height = 16;
+    const yStride = 40;
+    const uStride = 24;
+    const vStride = 24;
+    const strided = createStridedI420Buffer(
+      createColorBarsI420(width, height),
+      width,
+      height,
+      yStride,
+      uStride,
+      vStride,
+    );
+    const jpeg = encodeI420ToJpeg(strided.buffer, width, height, 95, {
+      yStride,
+      uStride,
+      vStride,
+    });
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
+
+    expect(decoded.width).toBe(width);
+    expect(decoded.height).toBe(height);
+
+    const redBar = sampleRgb(decoded, 4, 8);
+    const greenBar = sampleRgb(decoded, 12, 8);
+    const blueBar = sampleRgb(decoded, 20, 8);
+    const yellowBar = sampleRgb(decoded, 28, 8);
+
+    expect(redBar.red).toBeGreaterThan(redBar.green + 40);
+    expect(redBar.red).toBeGreaterThan(redBar.blue + 40);
+    expect(greenBar.green).toBeGreaterThan(greenBar.red + 40);
+    expect(greenBar.green).toBeGreaterThan(greenBar.blue + 40);
+    expect(blueBar.blue).toBeGreaterThan(blueBar.red + 40);
+    expect(blueBar.blue).toBeGreaterThan(blueBar.green + 40);
+    expect(yellowBar.red).toBeGreaterThan(yellowBar.blue + 40);
+    expect(yellowBar.green).toBeGreaterThan(yellowBar.blue + 40);
+  });
+
+  it("encodes strided I420 frames with explicit plane offsets", () => {
+    const width = 32;
+    const height = 16;
+    const yStride = 40;
+    const uStride = 24;
+    const vStride = 24;
+    const strided = createStridedI420Buffer(
+      createColorBarsI420(width, height),
+      width,
+      height,
+      yStride,
+      uStride,
+      vStride,
+      13,
+    );
+    const jpeg = encodeI420ToJpeg(strided.buffer, width, height, 95, {
+      yStride,
+      uStride,
+      vStride,
+      yOffset: strided.yOffset,
+      uOffset: strided.uOffset,
+      vOffset: strided.vOffset,
+    });
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
+
+    expect(decoded.width).toBe(width);
+    expect(decoded.height).toBe(height);
+
+    const redBar = sampleRgb(decoded, 4, 8);
+    const blueBar = sampleRgb(decoded, 20, 8);
+
+    expect(redBar.red).toBeGreaterThan(redBar.blue + 40);
+    expect(blueBar.blue).toBeGreaterThan(blueBar.red + 40);
+  });
+
+  it("infers strided chroma offsets after a custom luma offset", () => {
+    const width = 32;
+    const height = 16;
+    const yStride = 40;
+    const uStride = 24;
+    const vStride = 24;
+    const strided = createStridedI420Buffer(
+      createColorBarsI420(width, height),
+      width,
+      height,
+      yStride,
+      uStride,
+      vStride,
+      13,
+    );
+    const jpeg = encodeI420ToJpeg(strided.buffer, width, height, 95, {
+      yStride,
+      uStride,
+      vStride,
+      yOffset: strided.yOffset,
+    });
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
+
+    const redBar = sampleRgb(decoded, 4, 8);
+    const blueBar = sampleRgb(decoded, 20, 8);
+
+    expect(decoded.width).toBe(width);
+    expect(decoded.height).toBe(height);
+    expect(redBar.red).toBeGreaterThan(redBar.blue + 40);
+    expect(blueBar.blue).toBeGreaterThan(blueBar.red + 40);
+  });
+
   it("throws a handled JS exception for an undersized I420 buffer", () => {
     expect(() => encodeI420ToJpeg(Buffer.alloc(16 * 16), 16, 16, 85)).toThrow(
       /I420 buffer size mismatch/,
     );
+  });
+
+  it("throws a handled JS exception for an undersized strided I420 buffer", () => {
+    expect(() =>
+      encodeI420ToJpeg(Buffer.alloc(16 * 16), 16, 16, 85, {
+        yStride: 20,
+        uStride: 12,
+        vStride: 12,
+      }),
+    ).toThrow(/I420 buffer size mismatch for strided layout/);
+  });
+
+  it("throws a handled JS exception when only some I420 strides are provided", () => {
+    expect(() =>
+      encodeI420ToJpeg(createI420Buffer(16, 16), 16, 16, 85, {
+        yStride: 20,
+      }),
+    ).toThrow(/yStride, uStride, and vStride must be provided together/);
   });
 
   it("keeps native validation errors catchable instead of aborting the process", () => {
