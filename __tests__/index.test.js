@@ -125,19 +125,57 @@ describe("encodeI420ToJpeg", () => {
     );
   });
 
-  it("encodes odd-sized I420 frames with packed chroma planes", () => {
+  it("throws a handled JS exception for odd dimensions when padOddDimensions is false", () => {
+    expect(() => encodeI420ToJpeg(createI420Buffer(15, 16), 15, 16, 85)).toThrow(
+      /width and height must be even integers for I420/,
+    );
+
+    expect(() => encodeI420ToJpeg(createI420Buffer(16, 17), 16, 17, 85)).toThrow(
+      /width and height must be even integers for I420/,
+    );
+
+    expect(() => encodeI420ToJpeg(createI420Buffer(15, 16), 15, 16, 85, false)).toThrow(
+      /width and height must be even integers for I420/,
+    );
+  });
+
+  it("encodes odd-width I420 frames when padOddDimensions is true", () => {
     const width = 15;
-    const height = 17;
-    const expectedSize = width * height + 2 * Math.ceil(width / 2) * Math.ceil(height / 2);
-    const i420 = createI420Buffer(width, height);
+    const height = 16;
+    const jpeg = encodeI420ToJpeg(createI420Buffer(width, height), width, height, 85, true);
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
 
-    expect(i420.length).toBe(expectedSize);
+    // Output JPEG dimensions are padded to the next even values.
+    expect(decoded.width).toBe(width + 1);
+    expect(decoded.height).toBe(height);
+  });
 
-    const jpeg = encodeI420ToJpeg(i420, width, height, 85);
+  it("encodes odd-height I420 frames when padOddDimensions is true", () => {
+    const width = 16;
+    const height = 15;
+    const jpeg = encodeI420ToJpeg(createI420Buffer(width, height), width, height, 85, true);
     const decoded = jpegJs.decode(jpeg, { useTArray: true });
 
     expect(decoded.width).toBe(width);
-    expect(decoded.height).toBe(height);
+    expect(decoded.height).toBe(height + 1);
+  });
+
+  it("encodes odd-width-and-height I420 frames when padOddDimensions is true", () => {
+    const width = 15;
+    const height = 17;
+    const jpeg = encodeI420ToJpeg(createI420Buffer(width, height), width, height, 85, true);
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
+
+    expect(decoded.width).toBe(width + 1);
+    expect(decoded.height).toBe(height + 1);
+  });
+
+  it("padOddDimensions=true is a no-op for even-dimension frames", () => {
+    const jpeg = encodeI420ToJpeg(createI420Buffer(16, 16), 16, 16, 85, true);
+    const decoded = jpegJs.decode(jpeg, { useTArray: true });
+
+    expect(decoded.width).toBe(16);
+    expect(decoded.height).toBe(16);
   });
 
   it("throws a handled JS exception for invalid quality", () => {

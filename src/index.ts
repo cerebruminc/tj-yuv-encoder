@@ -6,6 +6,7 @@ interface NativeBinding {
     width: number,
     height: number,
     quality: number,
+    padOddDimensions: boolean,
   ): Buffer;
 }
 
@@ -24,8 +25,9 @@ export function encodeI420ToJpeg(
   width: number,
   height: number,
   quality: number,
+  padOddDimensions = false,
 ): Buffer {
-  return nativeEncodeI420ToJpeg(i420Buffer, width, height, quality);
+  return nativeEncodeI420ToJpeg(i420Buffer, width, height, quality, padOddDimensions);
 }
 
 export default encodeI420ToJpeg;

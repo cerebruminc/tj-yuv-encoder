@@ -44,7 +44,25 @@ const i420Buffer = Buffer.alloc((width * height * 3) / 2);
 const jpegBuffer = encodeI420ToJpeg(i420Buffer, width, height, quality);
 ```
 
-`width` and `height` must be positive integers for `I420`/`TJSAMP_420` input. For odd dimensions, the expected packed I420 buffer size is `width * height + 2 * ceil(width / 2) * ceil(height / 2)`. `encodeI420ToJpeg` throws standard JavaScript errors when arguments are invalid, the I420 buffer size does not match the expected packed layout, or `libjpeg-turbo` reports a compression failure.
+### Arguments
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `i420Buffer` | `Buffer` | ✓ | Packed planar I420 data |
+| `width` | `number` | ✓ | Frame width in pixels (positive integer) |
+| `height` | `number` | ✓ | Frame height in pixels (positive integer) |
+| `quality` | `number` | ✓ | JPEG quality from 1–100 |
+| `padOddDimensions` | `boolean` | – | Default `false`. When `true`, odd `width`/`height` are accepted and the encoder pads the luma plane with a replicated edge column/row to reach even dimensions before compressing. |
+
+### Dimension requirements
+
+`width` and `height` must be positive integers. Because I420 uses 4:2:0 subsampling, each chroma (U/V) plane must cover an integer number of 2×2 luma blocks.
+
+**Even dimensions (default):** `width` and `height` must both be even. The expected source buffer size is `width * height + 2 * (width / 2) * (height / 2)`.
+
+**Odd dimensions with `padOddDimensions = true`:** Any positive integer dimensions are accepted. The expected source buffer size uses `ceil` for the chroma planes: `width * height + 2 * ceil(width / 2) * ceil(height / 2)`. The encoder internally pads the luma plane by replicating the last column and/or row so that libjpeg-turbo receives an even-dimensioned frame. As a result, **the output JPEG dimensions are rounded up to the nearest even values** (e.g., a 15×17 source produces a 16×18 JPEG).
+
+`encodeI420ToJpeg` throws standard JavaScript errors when arguments are invalid, the I420 buffer size does not match the expected packed layout, or `libjpeg-turbo` reports a compression failure.
 
 ## Development
 
