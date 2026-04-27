@@ -58,10 +58,6 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
         return ThrowRangeError(env, "width and height must be positive integers");
     }
 
-    if (width % 2 != 0 || height % 2 != 0) {
-        return ThrowRangeError(env, "width and height must be even for I420/TJSAMP_420 input");
-    }
-
     int quality = 0;
     if (!ReadPositiveInt(info[3], &quality) || quality > 100) {
         return ThrowRangeError(env, "quality must be an integer between 1 and 100");
@@ -73,12 +69,25 @@ Napi::Value EncodeI420ToJpeg(const Napi::CallbackInfo& info) {
         return ThrowRangeError(env, "I420 buffer size calculation overflowed");
     }
 
-    size_t pixelCount = widthSize * heightSize;
-    if (pixelCount > std::numeric_limits<size_t>::max() / 3) {
+    size_t lumaPlaneSize = widthSize * heightSize;
+
+    size_t chromaWidth = (widthSize + 1) / 2;
+    size_t chromaHeight = (heightSize + 1) / 2;
+    if (chromaWidth > 0 && chromaHeight > std::numeric_limits<size_t>::max() / chromaWidth) {
         return ThrowRangeError(env, "I420 buffer size calculation overflowed");
     }
 
-    size_t expectedSize = pixelCount * 3 / 2;
+    size_t chromaPlaneSize = chromaWidth * chromaHeight;
+    if (chromaPlaneSize > std::numeric_limits<size_t>::max() / 2) {
+        return ThrowRangeError(env, "I420 buffer size calculation overflowed");
+    }
+
+    size_t chromaTotalSize = chromaPlaneSize * 2;
+    if (lumaPlaneSize > std::numeric_limits<size_t>::max() - chromaTotalSize) {
+        return ThrowRangeError(env, "I420 buffer size calculation overflowed");
+    }
+
+    size_t expectedSize = lumaPlaneSize + chromaTotalSize;
     if (i420Buffer.Length() != expectedSize) {
         return ThrowTypeError(
             env,
